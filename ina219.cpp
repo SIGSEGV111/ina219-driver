@@ -26,10 +26,10 @@ namespace ina219
 		memcpy(buffer + 1, &value_be, 2);
 
 		if(write(this->fd_i2cbus, buffer, 3) != 3) throw "failed to write to register";
-		usleep(4);
 
 		if(verify)
 		{
+			usleep(4);
 			uint16_t check = 0;
 			if(read(this->fd_i2cbus, &check, 2) != 2) throw "failed to read register after write";
 			if(DEBUG) fprintf(stderr, "DEBUG: verify-register: reg=%02hhx, wanted-value=0x%04hx, actual-value=0x%04hx\n", register_address, value, be16toh(check));
@@ -108,20 +108,21 @@ namespace ina219
 		else
 			config.pg = 0b11;
 
-		if(DEBUG) fprintf(stderr, "DEBUG: config.pg = %hu\n", config.pg);
-
 		config.brng = max_voltage > 16;
+
+		if(DEBUG) fprintf(stderr, "DEBUG: mode = %hu, sadc = %hu, badc = %hu, pg = %hu, brng = %hu\n", config.mode, config.sadc, config.badc, config.pg, config.brng);
+
 		config.__unused0 = 0;
 		config.rst = 0;
 
 		WriteRegister(REG_CONFIG, *(uint16_t*)&config);
 
-		this->current_lsb = max_current_amps / 32768.0;
-		const uint16_t cal_reg = (uint16_t)(0.04096 / (this->current_lsb * r_shunt_ohm)) & ~1;
+		this->current_lsb = max_current_amps / 32768.0f;
+		const uint16_t cal_reg = (uint16_t)(0.04096f / (this->current_lsb * r_shunt_ohm)) & ~1;
 		if(DEBUG) fprintf(stderr, "DEBUG: current_lsb = %lf, cal_reg = %hu\n", this->current_lsb, cal_reg);
 		WriteRegister(REG_CALIBRATION, cal_reg);
 
-		usleep(150000);
+		usleep(150000);	// wait long enough for initial conversion to complete
 	}
 
 	void TINA219::Refresh()
